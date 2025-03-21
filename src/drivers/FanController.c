@@ -17,8 +17,8 @@
 
 static const char *TAG = "FanController";
 static bool is_fan_controller_initialized = false;
-static uint8_t current_speed = 0;
-static uint8_t temp_speed = 0;
+volatile uint8_t temp_speed = 0;
+volatile uint8_t current_speed = 0;
 
 esp_err_t fan_controller_init()
 {
@@ -93,4 +93,10 @@ void fan_controller_decrement_speed(void)
         }
         fan_controller_set_speed(temp_speed);
     }
+}
+
+void fan_controller_reset_speed(void)
+{
+    temp_speed = current_speed;
+    fan_controller_set_speed(30); //todo - replace with stored default value from flash
 }

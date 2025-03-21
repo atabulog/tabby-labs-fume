@@ -1,5 +1,6 @@
 #include "drivers/HardwareAbstractionLayer.h"
 #include "drivers/FanController.h"
+#include "drivers/EncoderController.h"
 #include "esp_log.h"
 #include <stdbool.h>
 
@@ -11,6 +12,12 @@ void tl_hal_init()
     if(fan_controller_init() != ESP_OK)
     {
         ESP_LOGE(TAG, "Failed to initialize fan controller");
+        assert(false); //exit application
+    }
+
+    if(encoder_controller_init() != ESP_OK)
+    {
+        ESP_LOGE(TAG, "Failed to initialize encoder controller");
         assert(false); //exit application
     }
 }

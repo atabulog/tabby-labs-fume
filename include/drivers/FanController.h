@@ -7,7 +7,7 @@
 // defines for fan limits
 #define FAN_SPEED_MAX 100
 #define FAN_SPEED_MIN 0
-#define FAN_SPEED_STEP 10
+#define FAN_SPEED_STEP 5
 
 /**
  * @brief Initializes the fan controller.
@@ -39,6 +39,11 @@ void fan_controller_increment_speed(void);
  * @note The speed will not drop below 0%.
  */
 void fan_controller_decrement_speed(void);
+
+/**
+ * @brief Resets the fan speed back to the stored default value
+ */
+void fan_controller_reset_speed(void);
 
 
 #endif //FAN_CONTROLLER_H
