@@ -19,9 +19,9 @@ void setup()
     }
 
     //register fan controller commands
-    if(!register_command(CMD_FAN_INCREMENT, fan_controller_increment_speed) ||
-       !register_command(CMD_FAN_DECREMENT, fan_controller_decrement_speed) ||
-       !register_command(CMD_FAN_DEFAULT, fan_controller_reset_speed))
+    if(!register_command(CMD_FAN_INCREMENT, fan_controller_decrement_duty) ||
+       !register_command(CMD_FAN_DECREMENT, fan_controller_increment_duty) ||
+       !register_command(CMD_FAN_DEFAULT, fan_controller_reset_duty))
     {
         ESP_LOGE(TAG, "Failed to register command");
         assert(false);
@@ -33,9 +33,10 @@ void setup()
 void app_main()
 {
     setup();
+    // Start fan at 100% duty - speed 0
     while(1)
     {
-        vTaskDelay(pdMS_TO_TICKS(100)); // 100ms task delay
-        ESP_LOGI(TAG, "fan speed: %d", fan_controller_get_speed());
+        vTaskDelay(pdMS_TO_TICKS(500));
+        ESP_LOGI(TAG, "%u %% | %ld [RPM]", (100-fan_controller_get_duty()), fan_controller_get_rpm());
     }
 }

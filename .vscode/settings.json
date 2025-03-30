@@ -1,5 +1,6 @@
 {
     "files.associations": {
-        "esp_attr.h": "c"
+        "esp_attr.h": "c",
+        "freertos.h": "c"
     }
 }

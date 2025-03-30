@@ -5,9 +5,9 @@
 #include "CommandService.h"
 
 //defines for the encoder pins
-#define ENCODER_PIN_CLK 13 // Encoder Clock (GPIO 13)
-#define ENCODER_PIN_DT 12  // Encoder Data (GPIO 12)
-#define ENCODER_PIN_SW 14  // Encoder Button (GPIO 14)
+#define ENCODER_PIN_CLK 14 // Encoder Clock
+#define ENCODER_PIN_DT 12  // Encoder Data
+#define ENCODER_PIN_SW 13  // Encoder Button
 
 /// @brief The last state of the CLK pin set in the isr
 volatile int lastCLK = 1;
