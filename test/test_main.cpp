@@ -1,4 +1,5 @@
 #include <unity.h>
+#include "freertos/FreeRTOS.h"  // Add this include for portTICK_PERIOD_MS
 
 extern "C" {
     #include "drivers/FanController.h"
@@ -28,10 +29,18 @@ void test_invalid_duty_cycle_negative(void) {
     TEST_ASSERT_LESS_OR_EQUAL_UINT8(FAN_DUTY_MAX, fan_controller_get_duty());
 }
 
-extern "C" void app_main(void) {
+extern "C" 
+{
+int main()
+{
     UNITY_BEGIN();
     RUN_TEST(test_valid_duty_cycle);
     RUN_TEST(test_invalid_duty_cycle_over_max);
     RUN_TEST(test_invalid_duty_cycle_negative);
     UNITY_END();
+    // End the test loop so it doesn't run repeatedly
+    vTaskDelay(1000 / portTICK_PERIOD_MS);
+    esp_restart();  // reboot to clean up
+    return 0;  // Return success
+}  
 }

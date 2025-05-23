@@ -353,7 +353,6 @@
                 "ESP_PLATFORM",
                 "PLATFORMIO=60118",
                 "ARDUINO_ESP32_DEV",
-                "__PLATFORMIO_BUILD_DEBUG__",
                 ""
             ],
             "cStandard": "gnu17",
