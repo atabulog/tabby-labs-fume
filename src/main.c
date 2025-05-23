@@ -19,8 +19,8 @@ void setup()
     }
 
     //register fan controller commands
-    if(!register_command(CMD_FAN_INCREMENT, fan_controller_decrement_duty) ||
-       !register_command(CMD_FAN_DECREMENT, fan_controller_increment_duty) ||
+    if(!register_command(CMD_FAN_DECREMENT, fan_controller_decrement_duty) ||
+       !register_command(CMD_FAN_INCREMENT, fan_controller_increment_duty) ||
        !register_command(CMD_FAN_DEFAULT, fan_controller_reset_duty))
     {
         ESP_LOGE(TAG, "Failed to register command");
@@ -37,6 +37,6 @@ void app_main()
     while(1)
     {
         vTaskDelay(pdMS_TO_TICKS(500));
-        ESP_LOGI(TAG, "%u %% | %ld [RPM]", (100-fan_controller_get_duty()), fan_controller_get_rpm());
+        ESP_LOGI(TAG, "%u %%", fan_controller_get_duty());
     }
 }

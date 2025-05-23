@@ -15,7 +15,7 @@
 //=============================================================================
 
 //defines for the fan pwm via PWM
-#define FAN_PWM_PIN 15
+#define FAN_PWM_PIN 18
 #define FAN_PCNT_PIN 2
 #define PWM_FREQ_HZ 25000
 #define PWM_RESOLUTION LEDC_TIMER_8_BIT
@@ -37,10 +37,10 @@ static const char *TAG = "FanController";
 volatile uint8_t temp_duty = 0;
 volatile uint8_t current_duty = 0;
 //measured speed is volatile to allow for VTask usage
-volatile int32_t measured_fan_speed_rpm = 0;
+//volatile int32_t measured_fan_speed_rpm = 0;
 //variables for pulse counter
 static bool is_fan_controller_initialized = false;
-static pcnt_unit_handle_t pcnt_unit = NULL; // Handle for the PCNT unit
+//static pcnt_unit_handle_t pcnt_unit = NULL; // Handle for the PCNT unit
 
 
 //=============================================================================
@@ -50,7 +50,7 @@ static pcnt_unit_handle_t pcnt_unit = NULL; // Handle for the PCNT unit
 /**
  * @brief Private method to calculate the fan speed in RPM within a vTask.
  */
-void fan_controller_calc_speed_rpm(void *pvParameters);
+//void fan_controller_calc_speed_rpm(void *pvParameters);
 
 
 //=============================================================================
@@ -88,37 +88,37 @@ esp_err_t fan_controller_init()
     ledc_channel_config(&channel_config);
     
 
-    // Initialize the fan speed monitoring via PCNT
-    pcnt_unit_config_t pcnt_config = {
-        .high_limit = 1000, // Max count value (imposes theoretical limit for fan speed of 30k RPM)
-        .low_limit = -1000, // No need for a negative limit
-        .flags.accum_count = false, // Reset count every read
-    };
+    //// Initialize the fan speed monitoring via PCNT
+    //pcnt_unit_config_t pcnt_config = {
+    //    .high_limit = 1000, // Max count value (imposes theoretical limit for fan speed of 30k RPM)
+    //    .low_limit = -1000, // No need for a negative limit
+    //    .flags.accum_count = false, // Reset count every read
+    //};
 
-    ESP_ERROR_CHECK(pcnt_new_unit(&pcnt_config, &pcnt_unit));
+    //ESP_ERROR_CHECK(pcnt_new_unit(&pcnt_config, &pcnt_unit));
 
-    pcnt_chan_config_t pcnt_chan_config = {
-        .edge_gpio_num = FAN_PCNT_PIN, // Fan tach signal
-        .level_gpio_num = -1, // Not using a level control signal
-        .flags.invert_edge_input = false, // Normal counting
-    };
+    //pcnt_chan_config_t pcnt_chan_config = {
+    //    .edge_gpio_num = FAN_PCNT_PIN, // Fan tach signal
+    //    .level_gpio_num = -1, // Not using a level control signal
+    //    .flags.invert_edge_input = false, // Normal counting
+    //};
 
-    pcnt_channel_handle_t pcnt_chan = NULL;
-    ESP_ERROR_CHECK(pcnt_new_channel(pcnt_unit, &pcnt_chan_config, &pcnt_chan));
-    ESP_ERROR_CHECK(pcnt_channel_set_edge_action(pcnt_chan, PCNT_CHANNEL_EDGE_ACTION_INCREASE, PCNT_CHANNEL_EDGE_ACTION_HOLD));
+    //pcnt_channel_handle_t pcnt_chan = NULL;
+    //ESP_ERROR_CHECK(pcnt_new_channel(pcnt_unit, &pcnt_chan_config, &pcnt_chan));
+    //ESP_ERROR_CHECK(pcnt_channel_set_edge_action(pcnt_chan, PCNT_CHANNEL_EDGE_ACTION_INCREASE, PCNT_CHANNEL_EDGE_ACTION_HOLD));
     
-    ESP_ERROR_CHECK(pcnt_unit_enable(pcnt_unit));
-    ESP_ERROR_CHECK(pcnt_unit_clear_count(pcnt_unit));
-    ESP_ERROR_CHECK(pcnt_unit_start(pcnt_unit));
+    //ESP_ERROR_CHECK(pcnt_unit_enable(pcnt_unit));
+    //ESP_ERROR_CHECK(pcnt_unit_clear_count(pcnt_unit));
+    //ESP_ERROR_CHECK(pcnt_unit_start(pcnt_unit));
 
     // Start a FreeRTOS task to calculate the fan speed in RPM
-    BaseType_t xReturned;
-    xReturned = xTaskCreate(fan_controller_calc_speed_rpm, "FanMeasSpeedRPM", 2048, NULL, 5, NULL);
-    if (xReturned != pdPASS)
-    {
-        ESP_LOGE(TAG, "Failed to create fan speed calculation task");
-        return ESP_FAIL;
-    }
+    //BaseType_t xReturned;
+    //xReturned = xTaskCreate(fan_controller_calc_speed_rpm, "FanMeasSpeedRPM", 2048, NULL, 5, NULL);
+    //if (xReturned != pdPASS)
+    //{
+    //    ESP_LOGE(TAG, "Failed to create fan speed calculation task");
+    //    return ESP_FAIL;
+    //}
 
     // Set init flag and return
     ESP_LOGI(TAG, "Fan Controller initialized");
@@ -129,11 +129,22 @@ esp_err_t fan_controller_init()
 void fan_controller_set_duty(uint8_t duty)
 {
     // Set the fan duty (e.g., 0 to 100%)
-    if ( duty > FAN_DUTY_MAX) {
+    // Debounce: ignore repeated calls within a short interval
+    static uint32_t last_call_time = 0;
+    uint32_t now = xTaskGetTickCount();
+    const uint32_t debounce_ticks = pdMS_TO_TICKS(100); // 10 ms debounce
+
+    if (now - last_call_time < debounce_ticks) {
+        return;
+    }
+    last_call_time = now;
+
+    if (duty > FAN_DUTY_MAX) {
         ESP_LOGW(TAG, "Invalid duty %d. Duty must be between %d and %d.", duty, FAN_DUTY_MIN, FAN_DUTY_MAX);
         return;
     }
     current_duty = duty;
+    ESP_LOGI(TAG, "Setting fan duty to %d %%", DUTY_CYCLE_U8(current_duty));
     ledc_set_duty(LEDC_LOW_SPEED_MODE, PWM_CHANNEL, DUTY_CYCLE_U8(current_duty));  // Scale 0-255
     ledc_update_duty(LEDC_LOW_SPEED_MODE, PWM_CHANNEL);
 }
@@ -145,25 +156,24 @@ uint8_t fan_controller_get_duty()
 
 void fan_controller_increment_duty(void)
 {
-    if (temp_duty < FAN_DUTY_MAX) 
+    temp_duty += FAN_DUTY_STEP;
+    if (temp_duty > FAN_DUTY_MAX) 
     {
-        temp_duty += FAN_DUTY_STEP;
-        if (temp_duty > FAN_DUTY_MAX) 
-        {
-            temp_duty = FAN_DUTY_MAX;
-        }
-        fan_controller_set_duty(temp_duty);
+        ESP_LOGI(TAG, "Capped out");
+        temp_duty = FAN_DUTY_MAX;
     }
+    fan_controller_set_duty(temp_duty);
 }
 
 void fan_controller_decrement_duty(void)
 {
-    if (temp_duty > FAN_DUTY_STEP)
+    if (current_duty > FAN_DUTY_STEP)
     {
-        temp_duty -=  FAN_DUTY_STEP;
+        temp_duty -= FAN_DUTY_STEP;
     }
     else
     {
+        ESP_LOGI(TAG, "bottomed out");
         temp_duty = FAN_DUTY_MIN;
     }
     fan_controller_set_duty(temp_duty);
@@ -172,44 +182,45 @@ void fan_controller_decrement_duty(void)
 void fan_controller_reset_duty(void)
 {
     temp_duty = current_duty;
+        ESP_LOGI(TAG, "duty reset to 30");
     fan_controller_set_duty(30); //todo - replace with stored default value from flash
 }
 
-int32_t fan_controller_get_rpm(void)
-{
-    return measured_fan_speed_rpm;
-}
+//int32_t fan_controller_get_rpm(void)
+//{
+//    return measured_fan_speed_rpm;
+//}
 
 
 //=============================================================================
 // Private Function Implementations
 //=============================================================================
 
-void fan_controller_calc_speed_rpm(void* pvParameters)
-{
-    int num_pulses = 0;
-    uint64_t last_time_us = esp_timer_get_time();
-    uint64_t current_time_us;
-    float elapsed_time_sec;
-
-    while (true)
-    {
-        // Calculate elapsed time since last read
-        current_time_us = esp_timer_get_time();
-        elapsed_time_sec = MICROSECONDS_TO_SECONDS(current_time_us - last_time_us);
-
-        if (elapsed_time_sec > 0)
-        {
-            // Read pulse count and reset counter
-            ESP_ERROR_CHECK(pcnt_unit_get_count(pcnt_unit, &num_pulses));
-            ESP_ERROR_CHECK(pcnt_unit_clear_count(pcnt_unit));
-
-            // Calculate fan speed in RPM
-            measured_fan_speed_rpm = ((float)num_pulses / elapsed_time_sec) * (SECONDS_PER_MINUTE / TACH_PULSES_PER_REV);
-            last_time_us = current_time_us;
-        }
-
-        // Sleep until the next interval
-        vTaskDelay(pdMS_TO_TICKS(FAN_TACH_CALC_INTERVAL_MS));
-    }
-}
+//void fan_controller_calc_speed_rpm(void* pvParameters)
+//{
+//    int num_pulses = 0;
+//    uint64_t last_time_us = esp_timer_get_time();
+//    uint64_t current_time_us;
+//    float elapsed_time_sec;
+//
+//    while (true)
+//    {
+//        // Calculate elapsed time since last read
+//        current_time_us = esp_timer_get_time();
+//        elapsed_time_sec = MICROSECONDS_TO_SECONDS(current_time_us - last_time_us);
+//
+//        if (elapsed_time_sec > 0)
+//        {
+//            // Read pulse count and reset counter
+//            ESP_ERROR_CHECK(pcnt_unit_get_count(pcnt_unit, &num_pulses));
+//            ESP_ERROR_CHECK(pcnt_unit_clear_count(pcnt_unit));
+//
+//            // Calculate fan speed in RPM
+//            measured_fan_speed_rpm = ((float)num_pulses / elapsed_time_sec) * (SECONDS_PER_MINUTE / TACH_PULSES_PER_REV);
+//            last_time_us = current_time_us;
+//        }
+//
+//        // Sleep until the next interval
+//        vTaskDelay(pdMS_TO_TICKS(FAN_TACH_CALC_INTERVAL_MS));
+//    }
+//}

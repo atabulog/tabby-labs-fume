@@ -21,8 +21,9 @@ bool command_service_is_ready = false;
  * @brief task to process commands in the queue. Halts until a command is received.
  * 
  */
-void process_commands_task(void)
+void process_commands_task(void *pvParameters)
 {
+    (void)pvParameters;
     command_t command;
     while (1)
     {
